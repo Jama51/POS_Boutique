@@ -1,0 +1,20 @@
+================================
+        POS BOUTIQUE ZAMORA      
+================================
+Folio: #23
+Cajero: Prueba
+Fecha: 24/05/2026 21:56
+Pago: Efectivo
+--------------------------------
+Cant Producto              Unit    Total
+--------------------------------
+1    Saco Sport         $750.00 $ 750.00
+1    Camisa Polo        $450.00 $ 450.00
+--------------------------------
+SUBTOTAL:           $ 1200.00
+DESCUENTO:          -$  50.00
+TOTAL:              $ 1150.00
+EFECTIVO:           $ 1300.00
+CAMBIO:             $  150.00
+================================
+      ¡Gracias por su compra!     

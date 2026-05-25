@@ -55,9 +55,9 @@ def iniciar_app():
         usuario_activo = validar_credenciales(user, pwd)
 
         if usuario_activo:
-            app.withdraw() 
-            dashboard = VentanaPrincipal(usuario_activo)
-            dashboard.protocol("WM_DELETE_WINDOW", sys.exit) 
+            app.withdraw()
+            dashboard = VentanaPrincipal(usuario_activo, login_window=app)
+            dashboard.protocol("WM_DELETE_WINDOW", sys.exit)
             dashboard.mainloop()
         else:   
             messagebox.showerror("Acceso Denegado", "Usuario o contraseña incorrectos.\nVerifica tus datos.", parent=app)
@@ -66,8 +66,8 @@ def iniciar_app():
     app.bind('<Return>', evento_login)
 
     # Botón principal
-    btn_login = ctk.CTkButton(card_frame, text="Ingresar al Sistema", command=evento_login, width=280, height=45, 
-                              corner_radius=10, font=("Roboto", 16, "bold"), fg_color="#1f538d", hover_color="#14375e")
+    btn_login = ctk.CTkButton(card_frame, text="Ingresar al Sistema", command=evento_login, width=300, height=50,
+                              corner_radius=16, font=("Roboto", 16, "bold"), fg_color=("#1f538d", "#17427f"), hover_color=("#14375e", "#0f2a55"), text_color="white")
     btn_login.pack(pady=(20, 20))
 
     # Pequeño separador visual

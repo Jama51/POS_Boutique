@@ -1,10 +1,12 @@
 import sqlite3
 
+from datetime import datetime, timedelta
+
 def obtener_total_ventas_dia():
     try:
         conexion = sqlite3.connect("pos_boutique.db")
         cursor = conexion.cursor()
-        cursor.execute("SELECT SUM(total) FROM Venta WHERE date(fecha) = date('now', 'localtime')")
+        cursor.execute("SELECT SUM(total) FROM Venta WHERE date(fecha, 'localtime') = date('now', 'localtime')")
         resultado = cursor.fetchone()[0]
         conexion.close()
 
@@ -12,6 +14,74 @@ def obtener_total_ventas_dia():
     except Exception as e:
         print(f"Error al obtener total de ventas: {e}")
         return 0.0
+
+
+def obtener_producto_mas_vendido_hoy():
+    try:
+        conexion = sqlite3.connect("pos_boutique.db")
+        cursor = conexion.cursor()
+        cursor.execute(
+            "SELECT p.nombre, SUM(d.cantidad) AS cantidad "
+            "FROM Detalle_Venta d "
+            "JOIN Venta v ON d.venta_id = v.id "
+            "JOIN Productos p ON d.producto_id = p.id "
+            "WHERE date(v.fecha, 'localtime') = date('now', 'localtime') "
+            "GROUP BY p.id "
+            "ORDER BY cantidad DESC "
+            "LIMIT 1"
+        )
+        resultado = cursor.fetchone()
+        conexion.close()
+        return resultado if resultado else None
+    except Exception as e:
+        print(f"Error al obtener producto más vendido: {e}")
+        return None
+
+
+def obtener_articulos_stock_bajo(limite=6, umbral=5):
+    try:
+        conexion = sqlite3.connect("pos_boutique.db")
+        cursor = conexion.cursor()
+        cursor.execute(
+            "SELECT nombre, stock FROM Productos "
+            "WHERE stock <= ? AND activo = 1 "
+            "ORDER BY stock ASC, nombre ASC "
+            "LIMIT ?",
+            (umbral, limite)
+        )
+        resultados = cursor.fetchall()
+        conexion.close()
+        return resultados
+    except Exception as e:
+        print(f"Error al obtener artículos con stock bajo: {e}")
+        return []
+
+
+def obtener_ventas_ultimos_5_dias():
+    try:
+        conexion = sqlite3.connect("pos_boutique.db")
+        cursor = conexion.cursor()
+        fecha_inicio = (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d")
+        cursor.execute(
+            "SELECT date(fecha, 'localtime'), COALESCE(SUM(total), 0) FROM Venta "
+            "WHERE date(fecha, 'localtime') >= ? "
+            "GROUP BY date(fecha, 'localtime') "
+            "ORDER BY date(fecha, 'localtime')",
+            (fecha_inicio,)
+        )
+        datos = {fila[0]: fila[1] for fila in cursor.fetchall()}
+        conexion.close()
+
+        dias = []
+        ventas = []
+        for offset in range(4, -1, -1):
+            dia = (datetime.now() - timedelta(days=offset)).strftime("%Y-%m-%d")
+            dias.append(dia)
+            ventas.append(float(datos.get(dia, 0.0)))
+        return list(zip(dias, ventas))
+    except Exception as e:
+        print(f"Error al obtener ventas últimos 5 días: {e}")
+        return []
 
 def actualizar_stock_producto(id_producto, cantidad_agregar):
     try:

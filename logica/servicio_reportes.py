@@ -2,7 +2,7 @@ import openpyxl
 from datetime import datetime
 import os
 
-def registrar_venta_en_excel(folio, total, nombre_cajero, carrito):
+def registrar_venta_en_excel(folio, subtotal, descuento, total, nombre_cajero, metodo_pago, carrito):
     ruta = "Reporte_Ventas_Boutique.xlsx"
     
     try:
@@ -10,49 +10,73 @@ def registrar_venta_en_excel(folio, total, nombre_cajero, carrito):
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Registro de Ventas"
-            ws.append(["Folio", "Fecha y Hora", "Cajero", "Total ($)", "Detalle de Productos"])
+            ws.append([
+                "Folio", "Fecha y Hora", "Cajero", "Método de Pago",
+                "Subtotal ($)", "Descuento ($)", "Total ($)", "Detalle de Productos"
+            ])
         else:
             wb = openpyxl.load_workbook(ruta)
             ws = wb.active
+            header = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+            expected = [
+                "Folio", "Fecha y Hora", "Cajero", "Método de Pago",
+                "Subtotal ($)", "Descuento ($)", "Total ($)", "Detalle de Productos"
+            ]
+            if header[:len(expected)] != expected:
+                for col_index, heading in enumerate(expected, start=1):
+                    ws.cell(row=1, column=col_index, value=heading)
 
-        # Creamos un resumen de los productos para el Excel (ej: "2x Camisa, 1x Pantalón")
-        # Primero agrupamos por nombre
-        resumen_dict = {}
+        detalle_items = {}
         for item in carrito:
-            resumen_dict[item.nombre] = resumen_dict.get(item.nombre, 0) + 1
-        
-        # Lo convertimos a texto: "2x Camisa Polo, 1x Jeans"
-        detalle_texto = ", ".join([f"{cant}x {nombre}" for nombre, cant in resumen_dict.items()])
+            if item.id not in detalle_items:
+                detalle_items[item.id] = {
+                    "nombre": item.nombre,
+                    "precio": item.precio,
+                    "cantidad": 0,
+                }
+            detalle_items[item.id]["cantidad"] += 1
 
+        lineas_detalle = []
+        for info in detalle_items.values():
+            subtotal_item = info["cantidad"] * info["precio"]
+            lineas_detalle.append(
+                f"{info['cantidad']}x {info['nombre']} @ ${info['precio']:.2f} = ${subtotal_item:.2f}"
+            )
+
+        detalle_texto = "\n".join(lineas_detalle)
         fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-        ws.append([folio, fecha, nombre_cajero, total, detalle_texto])
-        
+        ws.append([folio, fecha, nombre_cajero, metodo_pago, subtotal, descuento, total, detalle_texto])
+
+        ws.column_dimensions['A'].width = 12
+        ws.column_dimensions['B'].width = 18
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 16
+        ws.column_dimensions['E'].width = 12
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 12
+        ws.column_dimensions['H'].width = 60
+
         wb.save(ruta)
         print(" 📊 Registro en Excel actualizado.")
-        
-        # --- AÑADIDO: Avisamos a la GUI que todo salió bien ---
-        return True 
+        return True
 
     except PermissionError:
         print("\n ⚠️ ¡ERROR DE PERMISO!")
         print(" No se pudo actualizar el Excel porque el archivo está ABIERTO.")
         print(" Por favor, ciérrelo para que las próximas ventas se registren correctamente.")
-        
-        # --- AÑADIDO: Avisamos a la GUI que falló por permiso ---
-        return False 
-        
+        return False
+
     except Exception as e:
         print(f" ❌ Error inesperado en Excel: {e}")
         return False
 
 
-def generar_ticket_txt(folio, total, nombre_cajero, carrito):
+def generar_ticket_txt(folio, subtotal, descuento, total, nombre_cajero, metodo_pago, efectivo, carrito):
     if not os.path.exists("facturas"):
         os.makedirs("facturas")
         
     ruta_ticket = f"facturas/ticket_{folio}.txt"
     
-    # Agrupamos productos para que el ticket no sea una lista infinita
     resumen_dict = {}
     for item in carrito:
         if item.id not in resumen_dict:
@@ -61,23 +85,35 @@ def generar_ticket_txt(folio, total, nombre_cajero, carrito):
 
     try:
         with open(ruta_ticket, "w", encoding="utf-8") as f:
-            f.write("==============================\n")
-            f.write("       POS BOUTIQUE ZAMORA    \n")
-            f.write("==============================\n")
+            f.write("================================\n")
+            f.write("        POS BOUTIQUE ZAMORA      \n")
+            f.write("================================\n")
             f.write(f"Folio: #{folio}\n")
             f.write(f"Cajero: {nombre_cajero}\n")
             f.write(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
-            f.write("------------------------------\n")
-            
-            for id_p, info in resumen_dict.items():
+            f.write(f"Pago: {metodo_pago}\n")
+            f.write("--------------------------------\n")
+
+            f.write(f"{'Cant':<4} {'Producto':<18} {'Unit':>7} {'Total':>8}\n")
+            f.write("--------------------------------\n")
+            for info in resumen_dict.values():
                 subtotal_item = info['cant'] * info['precio']
-                linea = f"{info['cant']}x {info['nombre'][:15]}"
-                f.write(f"{linea:<20} ${subtotal_item:>8.2f}\n")
-                
-            f.write("------------------------------\n")
+                nombre_corto = info['nombre'][:18]
+                f.write(f"{info['cant']:<4} {nombre_corto:<18} ${info['precio']:>6.2f} ${subtotal_item:>7.2f}\n")
+
+            f.write("--------------------------------\n")
+            f.write(f"SUBTOTAL:           ${subtotal:>8.2f}\n")
+            if descuento > 0:
+                f.write(f"DESCUENTO:          -${descuento:>7.2f}\n")
             f.write(f"TOTAL:              ${total:>8.2f}\n")
-            f.write("==============================\n")
-            f.write("   ¡Gracias por su compra!    \n")
+            if metodo_pago == "Efectivo":
+                f.write(f"EFECTIVO:           ${efectivo:>8.2f}\n")
+                cambio = efectivo - total
+                if cambio < 0:
+                    cambio = 0.0
+                f.write(f"CAMBIO:             ${cambio:>8.2f}\n")
+            f.write("================================\n")
+            f.write("      ¡Gracias por su compra!     \n")
         print(f" 🧾 Ticket generado: {ruta_ticket}")
     except Exception as e:
         print(f" ❌ Error al generar ticket TXT: {e}")

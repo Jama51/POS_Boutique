@@ -91,8 +91,8 @@ def mostrar_menu_cajero(usuario_activo):
                     
                     if folio_venta:
                         print(f"\n ✅ Venta guardada con Folio: {folio_venta}")
-                        generar_ticket_txt(folio_venta, total, usuario_activo.nombre, carrito)
-                        registrar_venta_en_excel(folio_venta, total, usuario_activo.nombre, carrito)
+                        generar_ticket_txt(folio_venta, total, 0.0, total, usuario_activo.nombre, "Efectivo", total, carrito)
+                        registrar_venta_en_excel(folio_venta, total, 0.0, total, usuario_activo.nombre, "Efectivo", carrito)
                     else:
                         print("\n ❌ Error crítico al guardar la venta en la base de datos.")
                 else:
